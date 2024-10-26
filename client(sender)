@@ -1,7 +1,9 @@
 import socket
 import pyaudio
+import cv2
+import numpy as np
 
-# Set up audio parameters
+# Audio setup
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
@@ -9,24 +11,39 @@ CHUNK = 1024
 
 # Initialize PyAudio
 p = pyaudio.PyAudio()
-
-# Open the stream for recording
 stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
 
-# Set up UDP socket
+# Video setup
+video_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+UDP_VIDEO_PORT = 5006
 UDP_IP = "server_ip_here"  # Replace with server's IP address
-UDP_PORT = 5005
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-print("Recording and sending audio...")
+# Set up UDP socket for audio
+audio_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+UDP_AUDIO_PORT = 5005
+
+print("Recording and sending audio and video...")
+
+# Open video capture
+cap = cv2.VideoCapture(0)
 
 try:
     while True:
-        data = stream.read(CHUNK)
-        sock.sendto(data, (UDP_IP, UDP_PORT))
+        # Send audio
+        audio_data = stream.read(CHUNK)
+        audio_socket.sendto(audio_data, (UDP_IP, UDP_AUDIO_PORT))
+        
+        # Send video
+        ret, frame = cap.read()
+        if ret:
+            frame = cv2.resize(frame, (640, 480))  # Resize for consistency
+            video_data = frame.tobytes()
+            video_socket.sendto(video_data, (UDP_IP, UDP_VIDEO_PORT))
 except KeyboardInterrupt:
     print("Exiting...")
 finally:
     stream.stop_stream()
     stream.close()
     p.terminate()
+    cap.release()
+    cv2.destroyAllWindows()
