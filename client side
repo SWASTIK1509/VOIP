@@ -1,0 +1,32 @@
+import socket
+import pyaudio
+
+# Set up audio parameters
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 44100
+CHUNK = 1024
+
+# Initialize PyAudio
+p = pyaudio.PyAudio()
+
+# Open the stream for recording
+stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
+
+# Set up UDP socket
+UDP_IP = "server_ip_here"  # Replace with server's IP address
+UDP_PORT = 5005
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+print("Recording and sending audio...")
+
+try:
+    while True:
+        data = stream.read(CHUNK)
+        sock.sendto(data, (UDP_IP, UDP_PORT))
+except KeyboardInterrupt:
+    print("Exiting...")
+finally:
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
