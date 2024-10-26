@@ -1,0 +1,33 @@
+import socket
+import pyaudio
+
+# Set up audio parameters
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 44100
+CHUNK = 1024
+
+# Initialize PyAudio
+p = pyaudio.PyAudio()
+
+# Open the stream for playback
+stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True)
+
+# Set up UDP socket
+UDP_IP = "0.0.0.0"  # Listen on all interfaces
+UDP_PORT = 5005
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.bind((UDP_IP, UDP_PORT))
+
+print("Listening for incoming audio...")
+
+try:
+    while True:
+        data, addr = sock.recvfrom(CHUNK * 2)  # Buffer size
+        stream.write(data)
+except KeyboardInterrupt:
+    print("Exiting...")
+finally:
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
