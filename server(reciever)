@@ -1,7 +1,9 @@
 import socket
 import pyaudio
+import cv2
+import numpy as np
 
-# Set up audio parameters
+# Audio setup
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
@@ -9,25 +11,37 @@ CHUNK = 1024
 
 # Initialize PyAudio
 p = pyaudio.PyAudio()
-
-# Open the stream for playback
 stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, output=True)
 
-# Set up UDP socket
-UDP_IP = "0.0.0.0"  # Listen on all interfaces
-UDP_PORT = 5005
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind((UDP_IP, UDP_PORT))
+# Video setup
+UDP_VIDEO_PORT = 5006
+video_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+video_socket.bind(("0.0.0.0", UDP_VIDEO_PORT))
 
-print("Listening for incoming audio...")
+# Set up UDP socket for audio
+UDP_AUDIO_PORT = 5005
+audio_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+audio_socket.bind(("0.0.0.0", UDP_AUDIO_PORT))
+
+print("Listening for incoming audio and video...")
 
 try:
     while True:
-        data, addr = sock.recvfrom(CHUNK * 2)  # Buffer size
-        stream.write(data)
+        # Receive audio
+        audio_data, _ = audio_socket.recvfrom(CHUNK * 2)
+        stream.write(audio_data)
+        
+        # Receive video
+        video_data, _ = video_socket.recvfrom(921600)  # Adjust buffer size as needed
+        frame = np.frombuffer(video_data, dtype=np.uint8).reshape((480, 640, 3))  # Adjust for your video resolution
+        cv2.imshow('Video', frame)
+        
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 except KeyboardInterrupt:
     print("Exiting...")
 finally:
     stream.stop_stream()
     stream.close()
     p.terminate()
+    cv2.destroyAllWindows()
